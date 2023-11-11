@@ -1,0 +1,33 @@
+FROM ocaml/opam:debian-11-ocaml-4.14 AS builder 
+ARG uid                 # id of the user which own the syno volume directory
+ENV OPAMYES=yes
+
+# Install required packages for build
+USER root
+
+# Strangely SYNOLOGY impose its UID within container for volumes
+# So we change the opam UID to sync with the user which own the synology volume directory
+RUN echo uid=$uid
+RUN usermod -u $uid opam
+
+# Ignore the apt warning here as apt-get does not allow wildcarding versions
+# hadolint ignore=DL3027
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && apt-get update -q \  
+    && apt install -yq --no-install-recommends \
+        git-all \
+        libgmp-dev=2:6.* \
+        libipc-system-simple-perl=1.* \
+        libstring-shellquote-perl=1.* \
+        perl=5.*
+
+# Set up geneweb package and dependencies
+USER opam
+COPY init.sh bin/init.sh
+RUN mkdir -p /home/opam/geneweb
+WORKDIR /home/opam/geneweb
+	
+EXPOSE 2316-2317
+VOLUME [ "/home/opam/geneweb" ]
+
+CMD [ "/home/opam/bin/init.sh" ]
